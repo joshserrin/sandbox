@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import StandardWatchEventKinds._
 import scala.collection.mutable.{ Map => mMap }
+import scala.util._
 
 /**
  * The goal of this experiment is to monitor the contents of a file and process
@@ -82,18 +83,13 @@ object TailerSpec extends Specification {
     Files.isDirectory(path) must beTrue
     Files.isReadable(logPath) must beTrue
 
-    def catchUp(reader: BufferedReader): Unit = {
-      // For some reason, this doesn't work.  We only read 2 lines at a time.
-      // @tailrec
-      // def catchUp(line: String): Unit =
-      //   if (line == null) ()
-      //   else lineRead(line); catchUp(reader.readLine)
-      // catchUp(reader.readLine)
-      var line = reader.readLine
-      while (line != null) {
+    def catchUp(reader: BufferedReader): Unit = Try(reader.readLine) match {
+      case Success(line) if null != line => {
         lineRead(line)
-        line = reader.readLine
+        catchUp(reader)
       }
+      case Success(line) if null == line => // all lines processed so far
+      case Failure(ex) => println(s"Error! $ex")
     }
 
     val readers = mMap.empty[Path, BufferedReader]
